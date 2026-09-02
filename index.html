@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>λ-Calculus</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <main>
+        <div id="analysis"></div>
+
+        <canvas id="diagram"></canvas>
+
+        <div id="step"></div>
+
+        <button id="previous" class="arrow previous">←</button>
+        <button id="next" class="arrow next">→</button>
+
+        <div class="controls">
+            <input id="expression" type="text" value="((λx.(x(yx)))(ff))">
+            <button id="reduce">β Reduce</button>
+        </div>
+    </main>
+
+    <script src="script.js" type="module"></script>
+</body>
+</html>
