@@ -30,10 +30,10 @@ export class LambdaExpressionAnalyzer {
             const arithmetic = this.detectArithmetic(expression);
 
             if (arithmetic) {
-                return `${this.analyzeExpression(arithmetic.left)} ${arithmetic.operator} ${this.analyzeExpression(arithmetic.right)}`;
+                return `${this.analyzeExpression(arithmetic.left)}${arithmetic.operator}${this.analyzeExpression(arithmetic.right)}`;
             }
 
-            return `(${this.analyzeExpression(expression.fn)} ${this.analyzeExpression(expression.argument)})`;
+            return `(${this.analyzeExpression(expression.fn)}${this.analyzeExpression(expression.argument)})`;
         }
 
         throw new Error("Unknown term");

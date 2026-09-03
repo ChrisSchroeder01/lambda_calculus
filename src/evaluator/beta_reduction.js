@@ -1,7 +1,6 @@
 import { Variable } from "../term/variable.js";
 import { Abstraction } from "../term/abstraction.js";
 import { Application } from "../term/application.js";
-import { Primitive } from "../term/primitive.js";
 
 
 export function betaReduce(expression) {
