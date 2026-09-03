@@ -2,7 +2,7 @@ import { Variable } from "../term/variable.js";
 import { Abstraction } from "../term/abstraction.js";
 import { Application } from "../term/application.js";
 import { NUMBER, ADD, SUB, MULT, EXP, DIV } from "../church/number.js";
-import { TRUE, FALSE, IF, AND, OR, NOT, XOR, NAND, IMPLIES } from "../church/boolean.js";
+import { TRUE, FALSE, IF, AND, OR, NOT, XOR, NAND, IMPLIES, IS_ZERO, LEQ, EQ } from "../church/boolean.js";
 
 export class LambdaExpressionParser {
     static parse(input) {
@@ -124,6 +124,9 @@ export class LambdaExpressionParser {
         if (name === "XOR") return XOR;
         if (name === "NAND") return NAND;
         if (name === "IMPLIES") return IMPLIES;
+        if (name === "IS_ZERO") return IS_ZERO;
+        if (name === "LEQ") return LEQ;
+        if (name === "EQ") return EQ;
 
         throw new Error(`Unknown name "${name}" at position ${start}`);
     }
@@ -220,7 +223,10 @@ export class LambdaExpressionParser {
             "OR",
             "XOR",
             "NAND",
-            "IMPLIES"
+            "IMPLIES",
+            "IS_ZERO",
+            "LEQ",
+            "EQ"
         ].includes(name);
     }
 
@@ -233,7 +239,7 @@ export class LambdaExpressionParser {
     }
 
     isNameCharacter(character) {
-        return /^[A-Z]$/.test(character);
+        return /^[A-Z_]$/.test(character);
     }
 
     isNumberCharacter(character) {

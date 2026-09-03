@@ -1,6 +1,7 @@
 import { Abstraction } from "../term/abstraction.js";
 import { Application } from "../term/application.js";
 import { Variable } from "../term/variable.js";
+import { SUB } from "./number.js";
 
 export const TRUE = new Abstraction(
     new Variable("a"),
@@ -121,6 +122,63 @@ export const IMPLIES = new Abstraction(
                 )
             ),
             new Variable("q")
+        )
+    )
+);
+
+export const IS_ZERO = new Abstraction(
+    new Variable("n"),
+    new Application(
+        new Application(
+            new Variable("n"),
+            new Abstraction(
+                new Variable("x"),
+                FALSE
+            )
+        ),
+        TRUE
+    )
+);
+
+export const LEQ = new Abstraction(
+    new Variable("m"),
+    new Abstraction(
+        new Variable("n"),
+        new Application(
+            IS_ZERO,
+            new Application(
+                new Application(
+                    SUB,
+                    new Variable("m")
+                ),
+                new Variable("n")
+            )
+        )
+    )
+);
+
+export const EQ = new Abstraction(
+    new Variable("m"),
+    new Abstraction(
+        new Variable("n"),
+        new Application(
+            new Application(
+                AND,
+                new Application(
+                    new Application(
+                        LEQ,
+                        new Variable("m")
+                    ),
+                    new Variable("n")
+                )
+            ),
+            new Application(
+                new Application(
+                    LEQ,
+                    new Variable("n")
+                ),
+                new Variable("m")
+            )
         )
     )
 );
