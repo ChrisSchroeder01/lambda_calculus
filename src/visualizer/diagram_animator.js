@@ -1,5 +1,7 @@
 import { createTrompDiagram } from "./tromps_diagrams.js";
 
+const UNIT = 20;
+
 export class DiagramAnimator {
     constructor(canvas, expressions, options = {}) {
         this.canvas = canvas;
@@ -12,55 +14,109 @@ export class DiagramAnimator {
         this.targetStep = 0;
 
         this.duration = options.duration ?? 500;
-        this.jumpDuration = options.jumpDuration ?? 180;
+        this.jumpDuration = options.jumpDuration ?? 220;
 
         this.lineWidth = options.lineWidth ?? 8;
         this.color = options.color ?? "white";
 
-        this.onStepChange = options.onStepChange ?? (() => {});
+        this.onStepChange =
+            options.onStepChange ?? (() => {});
 
         this.animationFrame = null;
-        this.animationStart = 0;
 
-        this.fromStep = 0;
-        this.fromVisual = null;
+        this.animation = null;
 
         this.resizeHandler = () => {
             this.resize();
-            this.drawStep(this.step);
+
+            /*
+             * During an animation redraw the current animation state.
+             */
+            if (this.animation) {
+                const now = performance.now();
+
+                const progress = Math.min(
+                    (now - this.animation.start) /
+                        this.animation.duration,
+                    1
+                );
+
+                this.drawTransition(
+                    this.animation.from,
+                    this.animation.to,
+                    this.ease(progress)
+                );
+            } else {
+                this.drawStep(this.step);
+            }
         };
 
         this.resize();
 
-        window.addEventListener("resize", this.resizeHandler);
+        window.addEventListener(
+            "resize",
+            this.resizeHandler
+        );
 
         this.drawStep(0);
         this.onStepChange(this.step);
     }
 
     destroy() {
-        cancelAnimationFrame(this.animationFrame);
-        this.animationFrame = null;
+        cancelAnimationFrame(
+            this.animationFrame
+        );
 
-        window.removeEventListener("resize", this.resizeHandler);
+        this.animationFrame = null;
+        this.animation = null;
+
+        window.removeEventListener(
+            "resize",
+            this.resizeHandler
+        );
     }
 
     resize() {
-        const dpr = window.devicePixelRatio || 1;
+        const dpr =
+            window.devicePixelRatio || 1;
 
-        const width = Math.min(window.innerWidth * 0.9, 1100);
-        const height = Math.min(window.innerHeight * 0.75, 700);
+        const width = Math.min(
+            window.innerWidth * 0.9,
+            1100
+        );
 
-        this.canvas.style.width = `${width}px`;
-        this.canvas.style.height = `${height}px`;
+        const height = Math.min(
+            window.innerHeight * 0.75,
+            700
+        );
 
-        this.canvas.width = width * dpr;
-        this.canvas.height = height * dpr;
+        this.canvas.style.width =
+            `${width}px`;
 
-        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        this.canvas.style.height =
+            `${height}px`;
 
-        this.ctx.strokeStyle = this.color;
-        this.ctx.lineWidth = this.lineWidth;
+        this.canvas.width =
+            width * dpr;
+
+        this.canvas.height =
+            height * dpr;
+
+        this.ctx.setTransform(
+            dpr,
+            0,
+            0,
+            dpr,
+            0,
+            0
+        );
+
+        this.ctx.strokeStyle =
+            this.color;
+
+        this.ctx.lineWidth =
+            this.lineWidth;
+
         this.ctx.lineCap = "butt";
         this.ctx.lineJoin = "miter";
 
@@ -68,183 +124,317 @@ export class DiagramAnimator {
         this.height = height;
     }
 
-    /*
-     * Normal forward navigation.
-     *
-     * If the user presses next several times while an animation
-     * is running, we don't restart the animation.
-     *
-     * Instead we change targetStep.
-     */
     next() {
-        if (this.targetStep >= this.diagrams.length - 1) return;
-
-        this.targetStep++;
-
-        this.animateToTarget();
-    }
-
-    previous() {
-        if (this.targetStep <= 0) return;
-
-        this.targetStep--;
-
-        this.animateToTarget();
-    }
-
-    first() {
-        if (this.diagrams.length === 0) return;
-
-        this.targetStep = 0;
-
-        this.animateToTarget(true);
-    }
-
-    last() {
-        if (this.diagrams.length === 0) return;
-
-        this.targetStep = this.diagrams.length - 1;
-
-        this.animateToTarget(true);
-    }
-
-    goTo(step, fast = false) {
-        step = Math.max(0, Math.min(step, this.diagrams.length - 1));
-
-        this.targetStep = step;
-
-        this.animateToTarget(fast);
-    }
-
-    /*
-     * Animate toward targetStep.
-     *
-     * Importantly, this function does NOT restart an existing animation
-     * if the target changes.
-     */
-    animateToTarget(fast = false) {
-        if (this.step === this.targetStep && !this.animationFrame) {
+        if (
+            this.targetStep >=
+            this.diagrams.length - 1
+        ) {
             return;
         }
 
+        this.targetStep++;
+
+        this.startNavigation();
+    }
+
+    previous() {
+        if (this.targetStep <= 0) {
+            return;
+        }
+
+        this.targetStep--;
+
+        this.startNavigation();
+    }
+
+    /*
+     * First and Last are direct jumps.
+     *
+     * We do NOT animate:
+     *
+     * 1 → 2 → 3 → ... → 50
+     *
+     * Instead:
+     *
+     * 1 ───────────────→ 50
+     */
+    first() {
+        if (this.diagrams.length === 0) {
+            return;
+        }
+
+        this.targetStep = 0;
+
+        this.jumpToTarget();
+    }
+
+    last() {
+        if (this.diagrams.length === 0) {
+            return;
+        }
+
+        this.targetStep =
+            this.diagrams.length - 1;
+
+        this.jumpToTarget();
+    }
+
+    goTo(step, fast = false) {
+        if (this.diagrams.length === 0) {
+            return;
+        }
+
+        step = Math.max(
+            0,
+            Math.min(
+                step,
+                this.diagrams.length - 1
+            )
+        );
+
+        this.targetStep = step;
+
+        if (fast) {
+            this.jumpToTarget();
+        } else {
+            this.startNavigation();
+        }
+    }
+
+    /*
+     * Normal Next / Previous navigation.
+     */
+    startNavigation() {
         /*
-         * If we're already animating, don't restart it.
+         * If already animating, DON'T restart.
          *
-         * The current animation will notice targetStep has changed
-         * and continue toward the new destination.
+         * targetStep has changed and the current animation
+         * will continue from where it is.
          */
         if (this.animationFrame) {
             return;
         }
 
-        this.startNextSegment(fast);
+        this.animateNextSegment();
     }
 
-    startNextSegment(fast = false) {
-        if (this.step === this.targetStep) {
+    animateNextSegment() {
+        if (
+            this.step ===
+            this.targetStep
+        ) {
             this.animationFrame = null;
+            this.animation = null;
+
             this.onStepChange(this.step);
+
             return;
         }
 
-        const from = this.step;
-        const direction = this.targetStep > this.step ? 1 : -1;
-        const to = this.step + direction;
+        const fromStep = this.step;
 
-        this.fromStep = from;
-        this.toStep = to;
+        const direction =
+            this.targetStep > this.step
+                ? 1
+                : -1;
 
-        this.animationStart = performance.now();
+        const toStep =
+            this.step + direction;
+
+        this.beginAnimation(
+            this.diagrams[fromStep],
+            this.diagrams[toStep],
+            this.duration,
+            () => {
+                this.step = toStep;
+
+                this.drawStep(this.step);
+
+                this.onStepChange(
+                    this.step
+                );
+
+                /*
+                 * If the user has requested more steps,
+                 * continue immediately.
+                 */
+                if (
+                    this.step !==
+                    this.targetStep
+                ) {
+                    this.animateNextSegment();
+                } else {
+                    this.animationFrame = null;
+                    this.animation = null;
+                }
+            }
+        );
+    }
+
+    /*
+     * Direct First / Last transition.
+     */
+    jumpToTarget() {
+        if (
+            this.step ===
+            this.targetStep
+        ) {
+            return;
+        }
 
         /*
-         * First/last use a shorter duration.
+         * If a normal step animation is currently running,
+         * cancel it and capture the visual position currently
+         * displayed on screen.
          */
-        const duration = fast
-            ? this.jumpDuration
-            : this.duration;
-
-        const frame = (time) => {
-            const progress = Math.min(
-                (time - this.animationStart) / duration,
-                1
+        if (this.animationFrame) {
+            cancelAnimationFrame(
+                this.animationFrame
             );
 
-            const eased = this.ease(progress);
+            this.animationFrame = null;
+        }
+
+        const destination =
+            this.diagrams[
+                this.targetStep
+            ];
+
+        /*
+         * Use the current step as the source.
+         *
+         * This is intentionally a direct visual jump.
+         */
+        const source =
+            this.animation?.to ||
+            this.diagrams[this.step];
+
+        this.animation = null;
+
+        this.beginAnimation(
+            source,
+            destination,
+            this.jumpDuration,
+            () => {
+                this.step =
+                    this.targetStep;
+
+                this.drawStep(
+                    this.step
+                );
+
+                this.onStepChange(
+                    this.step
+                );
+
+                this.animationFrame = null;
+                this.animation = null;
+            }
+        );
+    }
+
+    beginAnimation(
+        from,
+        to,
+        duration,
+        onComplete
+    ) {
+        this.animation = {
+            from,
+            to,
+            duration,
+            start: performance.now()
+        };
+
+        const frame = (time) => {
+            /*
+             * The animation may have been cancelled.
+             */
+            if (!this.animation) {
+                return;
+            }
+
+            const progress =
+                Math.min(
+                    (time -
+                        this.animation.start) /
+                        this.animation.duration,
+                    1
+                );
+
+            const eased =
+                this.ease(progress);
 
             this.drawTransition(
-                this.diagrams[from],
-                this.diagrams[to],
+                this.animation.from,
+                this.animation.to,
                 eased
             );
 
             if (progress < 1) {
-                this.animationFrame = requestAnimationFrame(frame);
+                this.animationFrame =
+                    requestAnimationFrame(
+                        frame
+                    );
+
                 return;
             }
 
-            /*
-             * We've reached the next step.
-             */
-            this.step = to;
+            this.animationFrame = null;
 
-            /*
-             * Don't clear animationFrame yet if another segment
-             * is needed.
-             */
-            this.drawStep(this.step);
-            this.onStepChange(this.step);
+            const callback =
+                onComplete;
 
-            if (this.step !== this.targetStep) {
-                /*
-                 * Continue automatically toward targetStep.
-                 */
-                this.startNextSegment(fast);
-            } else {
-                this.animationFrame = null;
-            }
+            this.animation = null;
+
+            callback();
         };
 
-        this.animationFrame = requestAnimationFrame(frame);
+        this.animationFrame =
+            requestAnimationFrame(frame);
     }
 
     drawStep(step) {
         this.clear();
 
-        if (!this.diagrams[step]) return;
+        const diagram =
+            this.diagrams[step];
 
-        this.drawDiagram(this.diagrams[step], 1);
+        if (!diagram) {
+            return;
+        }
+
+        this.drawDiagram(
+            diagram,
+            1
+        );
     }
 
     /*
-     * Animate lines according to correspondence rather than
-     * simply matching line array indexes.
+     * Main transition.
      */
-    drawTransition(fromDiagram, toDiagram, progress) {
+    drawTransition(
+        fromDiagram,
+        toDiagram,
+        progress
+    ) {
         this.clear();
 
-        const matches = this.matchLines(fromDiagram, toDiagram);
+        const matches =
+            this.matchLines(
+                fromDiagram,
+                toDiagram
+            );
 
         for (const match of matches) {
-            if (match.sources.length === 0) {
-                /*
-                 * New line:
-                 * grow it out of its nearest destination-related line
-                 * rather than simply making it appear.
-                 */
-                this.drawAppearingLine(
-                    match.targets[0],
-                    progress,
-                    toDiagram
-                );
-
-                continue;
-            }
-
-            if (match.targets.length === 0) {
-                /*
-                 * Removed line:
-                 * shrink it toward its source.
-                 */
+            /*
+             * Source only:
+             * line disappears toward its center.
+             */
+            if (
+                match.sources.length > 0 &&
+                match.targets.length === 0
+            ) {
                 this.drawDisappearingLine(
                     match.sources[0],
                     progress,
@@ -255,7 +445,26 @@ export class DiagramAnimator {
             }
 
             /*
-             * One source -> one or many targets.
+             * Target only:
+             * line grows from its center.
+             */
+            if (
+                match.sources.length === 0 &&
+                match.targets.length > 0
+            ) {
+                this.drawAppearingLine(
+                    match.targets[0],
+                    progress,
+                    toDiagram
+                );
+
+                continue;
+            }
+
+            /*
+             * Existing line → existing line.
+             *
+             * This is the important case.
              */
             this.drawMappedLines(
                 match.sources,
@@ -268,17 +477,13 @@ export class DiagramAnimator {
     }
 
     /*
-     * Draw one source line toward MULTtiple destination lines.
+     * Handles:
      *
-     * This is what makes splits look like:
+     * 1 → 1
+     * 1 → many
+     * many → 1
      *
-     *             ─────
-     *             /
-     *     ───────
-     *             \
-     *             ─────
-     *
-     * rather than one bar disappearing and two bars appearing.
+     * without double-transforming the coordinates.
      */
     drawMappedLines(
         sources,
@@ -287,85 +492,160 @@ export class DiagramAnimator {
         fromDiagram,
         toDiagram
     ) {
-        const source = sources[0];
+        /*
+         * Use the nearest source as the origin.
+         */
+        const source =
+            sources[0];
 
-        for (const target of targets) {
-            const start = this.transformPoint(
-                source.x1,
-                source.y1,
-                fromDiagram,
-                toDiagram,
+        for (
+            let i = 0;
+            i < targets.length;
+            i++
+        ) {
+            const target =
+                targets[i];
+
+            /*
+             * Source coordinates are transformed using
+             * ONLY the source diagram.
+             */
+            const sourceStart =
+                this.transformPoint(
+                    source.x1,
+                    source.y1,
+                    fromDiagram
+                );
+
+            const sourceEnd =
+                this.transformPoint(
+                    source.x2,
+                    source.y2,
+                    fromDiagram
+                );
+
+            /*
+             * Target coordinates are transformed using
+             * ONLY the target diagram.
+             */
+            const targetStart =
+                this.transformPoint(
+                    target.x1,
+                    target.y1,
+                    toDiagram
+                );
+
+            const targetEnd =
+                this.transformPoint(
+                    target.x2,
+                    target.y2,
+                    toDiagram
+                );
+
+            /*
+             * Correct interpolation:
+             *
+             * source screen position
+             *            ↓
+             *            ↓
+             * target screen position
+             */
+            const x1 = this.lerp(
+                sourceStart.x,
+                targetStart.x,
                 progress
             );
 
-            const start2 = this.transformPoint(
-                source.x2,
-                source.y2,
-                fromDiagram,
-                toDiagram,
+            const y1 = this.lerp(
+                sourceStart.y,
+                targetStart.y,
                 progress
             );
 
-            const end = this.transformPoint(
-                target.x1,
-                target.y1,
-                fromDiagram,
-                toDiagram,
+            const x2 = this.lerp(
+                sourceEnd.x,
+                targetEnd.x,
                 progress
             );
 
-            const end2 = this.transformPoint(
-                target.x2,
-                target.y2,
-                fromDiagram,
-                toDiagram,
+            const y2 = this.lerp(
+                sourceEnd.y,
+                targetEnd.y,
                 progress
             );
 
             /*
-             * We interpolate the source geometry toward the target
-             * geometry.
+             * For a split, the second/third destination
+             * starts with lower opacity and grows in.
              */
-            const x1 = this.lerp(start.x, end.x, progress);
-            const y1 = this.lerp(start.y, end.y, progress);
+            const alpha =
+                targets.length === 1
+                    ? 1
+                    : 0.2 +
+                      0.8 * progress;
 
-            const x2 = this.lerp(start2.x, end2.x, progress);
-            const y2 = this.lerp(start2.y, end2.y, progress);
-
-            /*
-             * For a split, don't show all destination lines at full
-             * opacity immediately.
-             */
-            const alpha = Math.min(
-                1,
-                0.15 + progress * 0.85
+            this.drawLine(
+                x1,
+                y1,
+                x2,
+                y2,
+                alpha
             );
-
-            this.drawLine(x1, y1, x2, y2, alpha);
         }
     }
 
-    drawAppearingLine(line, progress, diagram) {
-        const centerX = (line.x1 + line.x2) / 2;
-        const centerY = (line.y1 + line.y2) / 2;
+    drawAppearingLine(
+        line,
+        progress,
+        diagram
+    ) {
+        const centerX =
+            (line.x1 + line.x2) / 2;
 
-        const x1 = this.lerp(centerX, line.x1, progress);
-        const y1 = this.lerp(centerY, line.y1, progress);
+        const centerY =
+            (line.y1 + line.y2) / 2;
 
-        const x2 = this.lerp(centerX, line.x2, progress);
-        const y2 = this.lerp(centerY, line.y2, progress);
+        const x1 =
+            this.lerp(
+                centerX,
+                line.x1,
+                progress
+            );
 
-        const p1 = this.transformPoint(
-            x1,
-            y1,
-            diagram
-        );
+        const y1 =
+            this.lerp(
+                centerY,
+                line.y1,
+                progress
+            );
 
-        const p2 = this.transformPoint(
-            x2,
-            y2,
-            diagram
-        );
+        const x2 =
+            this.lerp(
+                centerX,
+                line.x2,
+                progress
+            );
+
+        const y2 =
+            this.lerp(
+                centerY,
+                line.y2,
+                progress
+            );
+
+        const p1 =
+            this.transformPoint(
+                x1,
+                y1,
+                diagram
+            );
+
+        const p2 =
+            this.transformPoint(
+                x2,
+                y2,
+                diagram
+            );
 
         this.drawLine(
             p1.x,
@@ -376,47 +656,61 @@ export class DiagramAnimator {
         );
     }
 
-    drawDisappearingLine(line, progress, diagram) {
-        const centerX = (line.x1 + line.x2) / 2;
-        const centerY = (line.y1 + line.y2) / 2;
+    drawDisappearingLine(
+        line,
+        progress,
+        diagram
+    ) {
+        const centerX =
+            (line.x1 + line.x2) / 2;
 
-        const remaining = 1 - progress;
+        const centerY =
+            (line.y1 + line.y2) / 2;
 
-        const x1 = this.lerp(
-            centerX,
-            line.x1,
-            remaining
-        );
+        const remaining =
+            1 - progress;
 
-        const y1 = this.lerp(
-            centerY,
-            line.y1,
-            remaining
-        );
+        const x1 =
+            this.lerp(
+                centerX,
+                line.x1,
+                remaining
+            );
 
-        const x2 = this.lerp(
-            centerX,
-            line.x2,
-            remaining
-        );
+        const y1 =
+            this.lerp(
+                centerY,
+                line.y1,
+                remaining
+            );
 
-        const y2 = this.lerp(
-            centerY,
-            line.y2,
-            remaining
-        );
+        const x2 =
+            this.lerp(
+                centerX,
+                line.x2,
+                remaining
+            );
 
-        const p1 = this.transformPoint(
-            x1,
-            y1,
-            diagram
-        );
+        const y2 =
+            this.lerp(
+                centerY,
+                line.y2,
+                remaining
+            );
 
-        const p2 = this.transformPoint(
-            x2,
-            y2,
-            diagram
-        );
+        const p1 =
+            this.transformPoint(
+                x1,
+                y1,
+                diagram
+            );
+
+        const p2 =
+            this.transformPoint(
+                x2,
+                y2,
+                diagram
+            );
 
         this.drawLine(
             p1.x,
@@ -428,86 +722,146 @@ export class DiagramAnimator {
     }
 
     /*
-     * Match lines between two diagrams.
+     * Match lines intelligently.
      *
-     * We intentionally don't use:
+     * Unlike the previous implementation, a destination line
+     * is NOT automatically matched to the nearest source.
      *
-     *     from.lines[i] -> to.lines[i]
-     *
-     * because reduction can reorder, add, remove, split or merge
-     * lines.
+     * There is a maximum distance threshold.
      */
-    matchLines(fromDiagram, toDiagram) {
-        const sources = fromDiagram.lines;
-        const targets = toDiagram.lines;
+    matchLines(
+        fromDiagram,
+        toDiagram
+    ) {
+        const sources =
+            fromDiagram.lines;
+
+        const targets =
+            toDiagram.lines;
 
         const matches = [];
 
-        const usedSources = new Set();
-        const usedTargets = new Set();
+        const sourceUsed =
+            new Set();
+
+        const targetUsed =
+            new Set();
 
         /*
-         * First pass:
-         * find the geometrically closest source for every target.
+         * Calculate every possible pair.
          */
-        for (let targetIndex = 0; targetIndex < targets.length; targetIndex++) {
-            const target = targets[targetIndex];
+        const candidates = [];
 
-            let bestSource = null;
-            let bestDistance = Infinity;
-
+        for (
+            let sourceIndex = 0;
+            sourceIndex < sources.length;
+            sourceIndex++
+        ) {
             for (
-                let sourceIndex = 0;
-                sourceIndex < sources.length;
-                sourceIndex++
+                let targetIndex = 0;
+                targetIndex < targets.length;
+                targetIndex++
             ) {
-                const source = sources[sourceIndex];
+                const distance =
+                    this.lineDistance(
+                        sources[sourceIndex],
+                        targets[targetIndex]
+                    );
 
-                const distance = this.lineDistance(
-                    source,
-                    target
-                );
-
-                if (distance < bestDistance) {
-                    bestDistance = distance;
-                    bestSource = sourceIndex;
-                }
-            }
-
-            /*
-             * Allow the same source to be used MULTtiple times.
-             *
-             * This is important for one-to-many transitions.
-             */
-            if (bestSource !== null) {
-                const source = sources[bestSource];
-
-                let match = matches.find(
-                    m => m.sourceIndex === bestSource
-                );
-
-                if (!match) {
-                    match = {
-                        sourceIndex: bestSource,
-                        sources: [source],
-                        targets: []
-                    };
-
-                    matches.push(match);
-                }
-
-                match.targets.push(target);
-
-                usedTargets.add(targetIndex);
-                usedSources.add(bestSource);
+                candidates.push({
+                    sourceIndex,
+                    targetIndex,
+                    distance
+                });
             }
         }
 
         /*
-         * Lines that disappeared.
+         * Closest matches first.
          */
-        for (let i = 0; i < sources.length; i++) {
-            if (!usedSources.has(i)) {
+        candidates.sort(
+            (a, b) =>
+                a.distance -
+                b.distance
+        );
+
+        /*
+         * Establish sensible matches.
+         *
+         * A source can be reused for a split.
+         * A target can be used only once.
+         */
+        for (const candidate of candidates) {
+            if (
+                targetUsed.has(
+                    candidate.targetIndex
+                )
+            ) {
+                continue;
+            }
+
+            /*
+             * Don't match completely unrelated lines.
+             */
+            if (
+                candidate.distance >
+                this.getMatchThreshold(
+                    sources[
+                        candidate.sourceIndex
+                    ],
+                    targets[
+                        candidate.targetIndex
+                    ]
+                )
+            ) {
+                continue;
+            }
+
+            targetUsed.add(
+                candidate.targetIndex
+            );
+
+            const sourceIndex =
+                candidate.sourceIndex;
+
+            let match =
+                matches.find(
+                    item =>
+                        item.sourceIndex ===
+                        sourceIndex
+                );
+
+            if (!match) {
+                match = {
+                    sourceIndex,
+                    sources: [
+                        sources[sourceIndex]
+                    ],
+                    targets: []
+                };
+
+                matches.push(match);
+                sourceUsed.add(
+                    sourceIndex
+                );
+            }
+
+            match.targets.push(
+                targets[
+                    candidate.targetIndex
+                ]
+            );
+        }
+
+        /*
+         * Source lines which disappeared.
+         */
+        for (
+            let i = 0;
+            i < sources.length;
+            i++
+        ) {
+            if (!sourceUsed.has(i)) {
                 matches.push({
                     sourceIndex: i,
                     sources: [sources[i]],
@@ -517,10 +871,14 @@ export class DiagramAnimator {
         }
 
         /*
-         * Lines that appeared.
+         * Target lines which appeared.
          */
-        for (let i = 0; i < targets.length; i++) {
-            if (!usedTargets.has(i)) {
+        for (
+            let i = 0;
+            i < targets.length;
+            i++
+        ) {
+            if (!targetUsed.has(i)) {
                 matches.push({
                     sourceIndex: null,
                     sources: [],
@@ -532,41 +890,98 @@ export class DiagramAnimator {
         return matches;
     }
 
-    lineDistance(a, b) {
-        const ax = (a.x1 + a.x2) / 2;
-        const ay = (a.y1 + a.y2) / 2;
+    getMatchThreshold(a, b) {
+        /*
+         * Lines within roughly a few structural units of one
+         * another can be considered the same moving line.
+         */
+        return (
+            UNIT * 5 +
+            Math.abs(a.length - b.length) * 0.5
+        );
+    }
 
-        const bx = (b.x1 + b.x2) / 2;
-        const by = (b.y1 + b.y2) / 2;
+    lineDistance(a, b) {
+        /*
+         * Strongly prefer the same orientation.
+         */
+        const orientationPenalty =
+            a.orientation === b.orientation
+                ? 0
+                : UNIT * 4;
 
         const midpointDistance =
-            Math.hypot(ax - bx, ay - by);
+            Math.hypot(
+                a.cx - b.cx,
+                a.cy - b.cy
+            );
 
         const endpointDistance =
             Math.min(
-                Math.hypot(a.x1 - b.x1, a.y1 - b.y1) +
-                Math.hypot(a.x2 - b.x2, a.y2 - b.y2),
+                Math.hypot(
+                    a.x1 - b.x1,
+                    a.y1 - b.y1
+                ) +
+                    Math.hypot(
+                        a.x2 - b.x2,
+                        a.y2 - b.y2
+                    ),
 
-                Math.hypot(a.x1 - b.x2, a.y1 - b.y2) +
-                Math.hypot(a.x2 - b.x1, a.y2 - b.y1)
+                Math.hypot(
+                    a.x1 - b.x2,
+                    a.y1 - b.y2
+                ) +
+                    Math.hypot(
+                        a.x2 - b.x1,
+                        a.y2 - b.y1
+                    )
             );
 
-        return midpointDistance + endpointDistance * 0.5;
+        const lengthDifference =
+            Math.abs(
+                a.length -
+                b.length
+            );
+
+        /*
+         * Structural kind also matters.
+         *
+         * A binding line should preferentially remain a binding line,
+         * an application bar should preferentially remain an application
+         * bar, etc.
+         */
+        const kindPenalty =
+            a.kind === b.kind
+                ? 0
+                : UNIT * 3;
+
+        return (
+            midpointDistance +
+            endpointDistance * 0.5 +
+            lengthDifference * 0.25 +
+            orientationPenalty +
+            kindPenalty
+        );
     }
 
-    drawDiagram(diagram, alpha) {
+    drawDiagram(
+        diagram,
+        alpha
+    ) {
         for (const line of diagram.lines) {
-            const start = this.transformPoint(
-                line.x1,
-                line.y1,
-                diagram
-            );
+            const start =
+                this.transformPoint(
+                    line.x1,
+                    line.y1,
+                    diagram
+                );
 
-            const end = this.transformPoint(
-                line.x2,
-                line.y2,
-                diagram
-            );
+            const end =
+                this.transformPoint(
+                    line.x2,
+                    line.y2,
+                    diagram
+                );
 
             this.drawLine(
                 start.x,
@@ -581,103 +996,133 @@ export class DiagramAnimator {
     transformPoint(
         x,
         y,
-        fromDiagram,
-        toDiagram,
-        progress
+        diagram
     ) {
-        if (!toDiagram) {
-            const scale = this.getScale(fromDiagram);
-            const offset = this.getOffset(
-                fromDiagram,
+        const scale =
+            this.getScale(diagram);
+
+        const offset =
+            this.getOffset(
+                diagram,
                 scale
             );
 
-            return {
-                x: offset.x + x * scale,
-                y: offset.y + y * scale
-            };
-        }
-
-        const fromScale =
-            this.getScale(fromDiagram);
-
-        const toScale =
-            this.getScale(toDiagram);
-
-        const fromOffset =
-            this.getOffset(
-                fromDiagram,
-                fromScale
-            );
-
-        const toOffset =
-            this.getOffset(
-                toDiagram,
-                toScale
-            );
-
         return {
-            x: this.lerp(
-                fromOffset.x + x * fromScale,
-                toOffset.x + x * toScale,
-                progress
-            ),
+            x:
+                offset.x +
+                x * scale,
 
-            y: this.lerp(
-                fromOffset.y + y * fromScale,
-                toOffset.y + y * toScale,
-                progress
-            )
+            y:
+                offset.y +
+                y * scale
         };
     }
 
     getScale(diagram) {
         return Math.min(
-            (this.width - 80) / diagram.width,
-            (this.height - 80) / diagram.height,
+            (this.width - 80) /
+                Math.max(
+                    diagram.width,
+                    1
+                ),
+
+            (this.height - 80) /
+                Math.max(
+                    diagram.height,
+                    1
+                ),
+
             1
         );
     }
 
-    getOffset(diagram, scale) {
+    getOffset(
+        diagram,
+        scale
+    ) {
         return {
             x:
                 (this.width -
-                    diagram.width * scale) /
+                    diagram.width *
+                        scale) /
                 2,
 
             y:
                 (this.height -
-                    diagram.height * scale) /
+                    diagram.height *
+                        scale) /
                 2
         };
     }
 
-    drawLine(x1, y1, x2, y2, alpha) {
-        const half = this.lineWidth / 2;
+    drawLine(
+        x1,
+        y1,
+        x2,
+        y2,
+        alpha
+    ) {
+        const half =
+            this.lineWidth / 2;
 
-        this.ctx.globalAlpha = alpha;
-        this.ctx.lineWidth = this.lineWidth;
-        this.ctx.strokeStyle = this.color;
+        this.ctx.globalAlpha =
+            Math.max(
+                0,
+                Math.min(1, alpha)
+            );
+
+        this.ctx.lineWidth =
+            this.lineWidth;
+
+        this.ctx.strokeStyle =
+            this.color;
 
         this.ctx.beginPath();
 
-        if (Math.abs(y1 - y2) < 0.01) {
-            this.ctx.moveTo(x1 - half, y1);
-            this.ctx.lineTo(x2 + half, y2);
-        } else if (Math.abs(x1 - x2) < 0.01) {
-            this.ctx.moveTo(x1, y1 - half);
-            this.ctx.lineTo(x2, y2 + half);
-        } else {
-            /*
-             * Support animated diagonal intermediate positions.
-             *
-             * At the final Tromp diagram the lines should normally
-             * still be horizontal/vertical, but during interpolation
-             * they can temporarily be diagonal.
-             */
-            this.ctx.moveTo(x1, y1);
-            this.ctx.lineTo(x2, y2);
+        /*
+         * During animation lines can temporarily be diagonal,
+         * so don't throw those away.
+         */
+        this.ctx.moveTo(
+            x1,
+            y1
+        );
+
+        this.ctx.lineTo(
+            x2,
+            y2
+        );
+
+        /*
+         * Extend horizontal/vertical lines by half their width
+         * to preserve the old visual appearance.
+         */
+        if (
+            Math.abs(y1 - y2) <
+            0.01
+        ) {
+            this.ctx.moveTo(
+                x1 - half,
+                y1
+            );
+
+            this.ctx.lineTo(
+                x2 + half,
+                y2
+            );
+        } else if (
+            Math.abs(x1 - x2) <
+            0.01
+        ) {
+            this.ctx.moveTo(
+                x1,
+                y1 - half
+            );
+
+            this.ctx.lineTo(
+                x2,
+                y2 + half
+            );
         }
 
         this.ctx.stroke();
@@ -695,14 +1140,26 @@ export class DiagramAnimator {
     }
 
     lerp(a, b, t) {
-        return a + (b - a) * t;
+        return (
+            a +
+            (b - a) * t
+        );
     }
 
     ease(t) {
-        return t * t * (3 - 2 * t);
+        /*
+         * Smoothstep.
+         */
+        return (
+            t *
+            t *
+            (3 - 2 * t)
+        );
     }
 }
 
 function createDiagram(expression) {
-    return createTrompDiagram(expression);
+    return createTrompDiagram(
+        expression
+    );
 }
