@@ -1,7 +1,6 @@
 import { Abstraction } from "../term/abstraction.js";
 import { Application } from "../term/application.js";
 import { Variable } from "../term/variable.js";
-import { Y } from "./combinator.js";
 
 export function NUMBER(number) {
     const f = new Variable("f");
@@ -192,7 +191,16 @@ export const SUB = new Abstraction(
                             )
                         ),
                         new Application(
-                            Y,
+                            new Abstraction(
+                                new Variable("q"),
+                                new Application(
+                                    new Application(
+                                        new Variable("m"),
+                                        new Variable("q")
+                                    ),
+                                    new Variable("x")
+                                )
+                            ),
                             new Abstraction(
                                 new Variable("q"),
                                 new Abstraction(
@@ -244,7 +252,16 @@ export const DIV = new Abstraction(
                         )
                     ),
                     new Application(
-                        Y,
+                        new Abstraction(
+                            new Variable("q"),
+                            new Application(
+                                new Application(
+                                    new Variable("m"),
+                                    new Variable("q")
+                                ),
+                                new Variable("x")
+                            )
+                        ),
                         new Abstraction(
                             new Variable("q"),
                             new Application(
