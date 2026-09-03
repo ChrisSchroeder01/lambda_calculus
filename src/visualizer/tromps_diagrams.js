@@ -17,9 +17,6 @@ export function createTrompDiagram(term) {
             y2,
             kind,
 
-            /*
-             * Extra information used by the animator.
-             */
             orientation:
                 x1 === x2
                     ? "vertical"
@@ -65,42 +62,19 @@ export function createTrompDiagram(term) {
         }
 
         if (term instanceof Abstraction) {
-            const body = draw(
-                term.body,
-                x,
-                y + UNIT
-            );
+            const body = draw(term.body, x, y + UNIT);
 
-            const occurrences =
-                body.freeVars.get(term) || [];
+            const occurrences = body.freeVars.get(term) || [];
 
             body.freeVars.delete(term);
 
             const leftX = x;
             const rightX = x + body.width;
 
-            /*
-             * Lambda's horizontal bar.
-             */
-            addLine(
-                leftX,
-                y,
-                rightX,
-                y,
-                "abstraction"
-            );
+            addLine(leftX, y, rightX, y, "abstraction");
 
-            /*
-             * Binder → variable occurrence lines.
-             */
             for (const point of occurrences) {
-                addLine(
-                    point.x,
-                    y,
-                    point.x,
-                    point.y,
-                    "binding"
-                );
+                addLine(point.x, y, point.x, point.y, "binding");
             }
 
             return {
@@ -114,64 +88,22 @@ export function createTrompDiagram(term) {
         }
 
         if (term instanceof Application) {
-            const fn = draw(
-                term.fn,
-                x,
-                y
-            );
+            const fn = draw(term.fn, x, y);
 
-            const argument = draw(
-                term.argument,
-                x + fn.width + UNIT,
-                y
-            );
+            const argument = draw(term.argument, x + fn.width + UNIT, y);
 
-            const bottomY =
-                y + Math.max(
-                    fn.height,
-                    argument.height
-                );
+            const bottomY = y + Math.max(fn.height, argument.height);
 
-            /*
-             * Left application stem.
-             */
             if (y + fn.height < bottomY) {
-                addLine(
-                    fn.rootX,
-                    y + fn.height,
-                    fn.rootX,
-                    bottomY,
-                    "application-stem"
-                );
+                addLine(fn.rootX, y + fn.height, fn.rootX, bottomY, "application-stem");
             }
 
-            /*
-             * Right application stem.
-             */
             if (y + argument.height < bottomY) {
-                addLine(
-                    argument.rootX,
-                    y + argument.height,
-                    argument.rootX,
-                    bottomY,
-                    "application-stem"
-                );
+                addLine(argument.rootX, y + argument.height, argument.rootX, bottomY, "application-stem");
             }
 
-            /*
-             * Application horizontal bar.
-             */
-            addLine(
-                fn.rootX,
-                bottomY,
-                argument.rootX,
-                bottomY,
-                "application"
-            );
+            addLine(fn.rootX, bottomY, argument.rootX, bottomY, "application");
 
-            /*
-             * Root continues downward.
-             */
             const rootX = fn.rootX;
             const newBottom = bottomY + UNIT;
 
@@ -183,9 +115,6 @@ export function createTrompDiagram(term) {
                 "application-root"
             );
 
-            /*
-             * Merge free variables.
-             */
             const freeVars = new Map(fn.freeVars);
 
             for (const [key, points] of argument.freeVars) {
@@ -201,14 +130,8 @@ export function createTrompDiagram(term) {
             return {
                 x,
                 y,
-                width:
-                    argument.x +
-                    argument.width -
-                    x,
-
-                height:
-                    newBottom - y,
-
+                width: argument.x + argument.width - x,
+                height: newBottom - y,
                 rootX,
                 freeVars
             };
@@ -219,18 +142,9 @@ export function createTrompDiagram(term) {
 
     const bounds = draw(term, 0, 0);
 
-    /*
-     * Free variable continuation lines.
-     */
     for (const points of bounds.freeVars.values()) {
         for (const point of points) {
-            addLine(
-                point.x,
-                Math.max(0, point.y - UNIT),
-                point.x,
-                point.y,
-                "free-variable"
-            );
+            addLine(point.x, Math.max(0, point.y - UNIT), point.x, point.y, "free-variable");
         }
     }
 
