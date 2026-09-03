@@ -20,6 +20,7 @@ function tryParse() {
     try {
         expression = LambdaExpressionParser.parse(input.value);
         input.style.borderColor = "white";
+        input.style.color = "white";
 
         animator?.destroy();
         animator = null;
@@ -29,7 +30,8 @@ function tryParse() {
         hideControls();
     } catch {
         expression = null;
-        input.style.borderColor = "";
+        input.style.borderColor = "#dc3545";
+        input.style.color = "#dc3545";
         analysisDisplay.textContent = "";
     }
 }
