@@ -1,6 +1,7 @@
 import { Abstraction } from "../term/abstraction.js";
 import { Application } from "../term/application.js";
 import { Variable } from "../term/variable.js";
+import { Y } from "./combinator.js";
 
 export function NUMBER(number) {
     const f = new Variable("f");
@@ -133,16 +134,82 @@ export const PRED = new Abstraction(
     )
 );
 
+//export const SUB = new Abstraction(
+//    new Variable("m"),
+//    new Abstraction(
+//        new Variable("n"),
+//        new Application(
+//            new Application(
+//                new Variable("n"),
+//                PRED
+//            ),
+//            new Variable("m")
+//        )
+//    )
+//);
+
+// Direct Substraction
 export const SUB = new Abstraction(
     new Variable("m"),
     new Abstraction(
         new Variable("n"),
-        new Application(
-            new Application(
-                new Variable("n"),
-                PRED
-            ),
-            new Variable("m")
+        new Abstraction(
+            new Variable("f"),
+            new Abstraction(
+                new Variable("x"),
+                new Application(
+                    new Application(
+                        new Application(
+                            new Variable("m"),
+                            new Abstraction(
+                                new Variable("r"),
+                                new Abstraction(
+                                    new Variable("q"),
+                                    new Application(
+                                        new Variable("q"),
+                                        new Variable("r")
+                                    )
+                                )
+                            )
+                        ),
+                        new Abstraction(
+                            new Variable("q"),
+                            new Variable("x")
+                        )
+                    ),
+                    new Application(
+                        new Application(
+                            new Variable("n"),
+                            new Abstraction(
+                                new Variable("q"),
+                                new Abstraction(
+                                    new Variable("r"),
+                                    new Application(
+                                        new Variable("r"),
+                                        new Variable("q")
+                                    )
+                                )
+                            )
+                        ),
+                        new Application(
+                            Y,
+                            new Abstraction(
+                                new Variable("q"),
+                                new Abstraction(
+                                    new Variable("r"),
+                                    new Application(
+                                        new Variable("f"),
+                                        new Application(
+                                            new Variable("r"),
+                                            new Variable("q")
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            )
         )
     )
 );
