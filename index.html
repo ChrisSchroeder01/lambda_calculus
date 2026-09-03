@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <title>λ-Calculus</title>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.3.1/css/all.min.css">
+
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -13,8 +16,21 @@
 
         <div id="step"></div>
 
-        <button id="previous" class="arrow previous">←</button>
-        <button id="next" class="arrow next">→</button>
+        <button id="first" class="arrow first" aria-label="First step">
+            <i class="fa-solid fa-angles-left"></i>
+        </button>
+
+        <button id="previous" class="arrow previous" aria-label="Previous step">
+            <i class="fa-solid fa-chevron-left"></i>
+        </button>
+
+        <button id="next" class="arrow next" aria-label="Next step">
+            <i class="fa-solid fa-chevron-right"></i>
+        </button>
+
+        <button id="last" class="arrow last" aria-label="Last step">
+            <i class="fa-solid fa-angles-right"></i>
+        </button>
 
         <div class="controls">
             <input id="expression" type="text" value="((λx.(x(yx)))(ff))">

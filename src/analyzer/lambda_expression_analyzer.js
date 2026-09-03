@@ -2,6 +2,7 @@ import { Variable } from "../term/variable.js";
 import { Abstraction } from "../term/abstraction.js";
 import { Application } from "../term/application.js";
 import { NUMBER, ADD, SUB, MUL, EXP } from "../arithmetic/number.js";
+import { TRUE, FALSE, IF, AND, OR, NOT, XOR, NAND, IMPLIES } from "../arithmetic/booleans.js";
 
 export class LambdaExpressionAnalyzer {
     static analyze(expression) {
@@ -9,6 +10,9 @@ export class LambdaExpressionAnalyzer {
     }
 
     static analyzeExpression(expression) {
+        if (this.same(expression, TRUE)) return "TRUE";
+        if (this.same(expression, FALSE)) return "FALSE";
+
         const number = this.detectNumber(expression);
 
         if (number !== null) return String(number);
@@ -17,6 +21,14 @@ export class LambdaExpressionAnalyzer {
         if (this.same(expression, SUB)) return "-";
         if (this.same(expression, MUL)) return "*";
         if (this.same(expression, EXP)) return "^";
+
+        if (this.same(expression, IF)) return "IF";
+        if (this.same(expression, AND)) return "AND";
+        if (this.same(expression, OR)) return "OR";
+        if (this.same(expression, NOT)) return "NOT";
+        if (this.same(expression, XOR)) return "XOR";
+        if (this.same(expression, NAND)) return "NAND";
+        if (this.same(expression, IMPLIES)) return "IMPLIES";
 
         if (expression instanceof Variable) {
             return expression.name;
@@ -30,10 +42,10 @@ export class LambdaExpressionAnalyzer {
             const arithmetic = this.detectArithmetic(expression);
 
             if (arithmetic) {
-                return `${this.analyzeExpression(arithmetic.left)}${arithmetic.operator}${this.analyzeExpression(arithmetic.right)}`;
+                return `${this.analyzeExpression(arithmetic.left)} ${arithmetic.operator}${this.analyzeExpression(arithmetic.right)}`;
             }
 
-            return `(${this.analyzeExpression(expression.fn)}${this.analyzeExpression(expression.argument)})`;
+            return `(${this.analyzeExpression(expression.fn)} ${this.analyzeExpression(expression.argument)})`;
         }
 
         throw new Error("Unknown term");

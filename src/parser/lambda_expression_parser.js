@@ -2,6 +2,7 @@ import { Variable } from "../term/variable.js";
 import { Abstraction } from "../term/abstraction.js";
 import { Application } from "../term/application.js";
 import { NUMBER, ADD, SUB, MUL, EXP } from "../arithmetic/number.js";
+import { TRUE, FALSE, IF, AND, OR, NOT, XOR, NAND, IMPLIES } from "../arithmetic/booleans.js";
 
 export class LambdaExpressionParser {
     static parse(input) {
@@ -22,32 +23,46 @@ export class LambdaExpressionParser {
         this.position = 0;
     }
 
-
-parseExpression() {
-    let expression = this.parseTerm();
-
-    this.skipWhitespace();
-
-    while (this.isOperator(this.current())) {
-        const operator = this.parseOperator();
-
-        if (!this.isEnd() && this.current() !== ")") {
-            const right = this.parseTerm();
-
-            expression = new Application(
-                new Application(operator, expression),
-                right
-            );
-        } else {
-            expression = new Application(expression, operator);
-        }
+    parseExpression() {
+        let expression = this.parseTerm();
 
         this.skipWhitespace();
+
+        while (!this.isEnd() && this.current() !== ")") {
+            if (this.isOperator(this.current())) {
+                const operator = this.parseOperator();
+
+                if (!this.isEnd() && this.current() !== ")") {
+                    const right = this.parseTerm();
+
+                    expression = new Application(new Application(operator, expression), right);
+                } else {
+                    expression = new Application(expression, operator);
+                }
+            } else if (this.isBooleanBinaryOperator()) {
+                const operator = this.parseName();
+                this.skipWhitespace();
+
+                if (this.isEnd() || this.current() === ")") {
+                    throw new Error(`Expected right operand at position ${this.position}`);
+                }
+
+                const right = this.parseTerm();
+
+                expression = new Application(new Application(operator, expression), right);
+            } else if (this.canStartTerm(this.current())) {
+                const right = this.parseTerm();
+
+                expression = new Application(expression, right);
+            } else {
+                break;
+            }
+
+            this.skipWhitespace();
+        }
+
+        return expression;
     }
-
-    return expression;
-}
-
 
     parseTerm() {
         this.skipWhitespace();
@@ -56,12 +71,20 @@ parseExpression() {
             return this.parseParenthesized();
         }
 
+        if (this.current() === "λ") {
+            return this.parseAbstraction();
+        }
+
         if (this.isNumberCharacter(this.current())) {
             return this.parseNumber();
         }
 
         if (this.isOperator(this.current())) {
             return this.parseOperator();
+        }
+
+        if (this.isNameStart(this.current())) {
+            return this.parseName();
         }
 
         return this.parseVariable();
@@ -80,6 +103,30 @@ parseExpression() {
         throw new Error(`Unknown operator "${operator}"`);
     }
 
+    parseName() {
+        this.skipWhitespace();
+
+        const start = this.position;
+
+        while (!this.isEnd() && this.isNameCharacter(this.current())) {
+            this.position++;
+        }
+
+        const name = this.input.slice(start, this.position);
+
+        if (name === "TRUE") return TRUE;
+        if (name === "FALSE") return FALSE;
+        if (name === "IF") return IF;
+        if (name === "AND") return AND;
+        if (name === "OR") return OR;
+        if (name === "NOT") return NOT;
+        if (name === "XOR") return XOR;
+        if (name === "NAND") return NAND;
+        if (name === "IMPLIES") return IMPLIES;
+
+        throw new Error(`Unknown name "${name}" at position ${start}`);
+    }
+
     parseParenthesized() {
         this.consume("(");
         this.skipWhitespace();
@@ -91,14 +138,12 @@ parseExpression() {
             return abstraction;
         }
 
-        const left = this.parseTerm();
-        this.skipWhitespace();
-        const right = this.parseTerm();
-        this.skipWhitespace();
+        const expression = this.parseExpression();
 
+        this.skipWhitespace();
         this.consume(")");
 
-        return new Application(left, right);
+        return expression;
     }
 
     parseAbstraction() {
@@ -107,7 +152,7 @@ parseExpression() {
 
         const parameters = [];
 
-        while (this.isVariableCharacter(this.current())) {
+        while (!this.isEnd() && this.isVariableCharacter(this.current())) {
             parameters.push(this.parseVariable());
             this.skipWhitespace();
         }
@@ -154,12 +199,55 @@ parseExpression() {
         return ["+", "-", "*", "^"].includes(character);
     }
 
+    isBooleanBinaryOperator() {
+        if (!this.isNameStart(this.current())) {
+            return false;
+        }
+
+        const start = this.position;
+
+        while (!this.isEnd() && this.isNameCharacter(this.current())) {
+            this.position++;
+        }
+
+        const name = this.input.slice(start, this.position);
+
+        this.position = start;
+
+        return [
+            "AND",
+            "OR",
+            "XOR",
+            "NAND",
+            "IMPLIES"
+        ].includes(name);
+    }
+
     isVariableCharacter(character) {
-        return /^[a-zA-Z]$/.test(character);
+        return /^[a-z]$/.test(character);
+    }
+
+    isNameStart(character) {
+        return /^[A-Z]$/.test(character);
+    }
+
+    isNameCharacter(character) {
+        return /^[A-Z]$/.test(character);
     }
 
     isNumberCharacter(character) {
         return /^[0-9]$/.test(character);
+    }
+
+    canStartTerm(character) {
+        return (
+            character === "(" ||
+            character === "λ" ||
+            this.isNumberCharacter(character) ||
+            this.isVariableCharacter(character) ||
+            this.isNameStart(character) ||
+            this.isOperator(character)
+        );
     }
 
     skipWhitespace() {

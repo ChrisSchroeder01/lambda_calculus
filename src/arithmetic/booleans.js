@@ -18,41 +18,109 @@ export const FALSE = new Abstraction(
     )
 );
 
+export const IF = new Abstraction(
+    new Variable("p"),
+    new Abstraction(
+        new Variable("a"),
+        new Abstraction(
+            new Variable("b"),
+            new Application(
+                new Application(
+                    new Variable("p"),
+                    new Variable("a")
+                ),
+                new Variable("b")
+            )
+        )
+    )
+);
+
+export const AND = new Abstraction(
+    new Variable("p"),
+    new Abstraction(
+        new Variable("q"),
+        new Application(
+            new Application(
+                new Variable("p"),
+                new Variable("q")
+            ),
+            FALSE
+        )
+    )
+);
+
+export const OR = new Abstraction(
+    new Variable("p"),
+    new Abstraction(
+        new Variable("q"),
+        new Application(
+            new Application(
+                new Variable("p"),
+                TRUE
+            ),
+            new Variable("q")
+        )
+    )
+);
+
 export const NOT = new Abstraction(
-    new Variable("x"),
+    new Variable("p"),
     new Application(
         new Application(
-            new Variable("x"),
+            new Variable("p"),
             FALSE
         ),
         TRUE
     )
 );
 
-export const AND = new Abstraction(
-    new Variable("x"),
+export const XOR = new Abstraction(
+    new Variable("p"),
     new Abstraction(
-        new Variable("y"),
+        new Variable("q"),
         new Application(
-            new Variable("x"),
             new Application(
-                new Variable("y"),
+                new Variable("p"),
+                new Application(
+                    NOT,
+                    new Variable("q")
+                )
+            ),
+            new Variable("q")
+        )
+    )
+);
+
+export const NAND = new Abstraction(
+    new Variable("p"),
+    new Abstraction(
+        new Variable("q"),
+        new Application(
+            NOT,
+            new Application(
+                new Application(
+                    new Variable("p"),
+                    new Variable("q")
+                ),
                 FALSE
             )
         )
     )
 );
 
-export const OR = new Abstraction(
-    new Variable("x"),
+export const IMPLIES = new Abstraction(
+    new Variable("p"),
     new Abstraction(
-        new Variable("y"),
+        new Variable("q"),
         new Application(
             new Application(
-                new Variable("x"),
-                TRUE
+                OR,
+                new Application(
+                    NOT,
+                    new Variable("p")
+                )
             ),
-            new Variable("y")
+            new Variable("q")
         )
     )
 );
