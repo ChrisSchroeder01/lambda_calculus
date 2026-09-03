@@ -1,8 +1,8 @@
 import { Variable } from "../term/variable.js";
 import { Abstraction } from "../term/abstraction.js";
 import { Application } from "../term/application.js";
-import { NUMBER, ADD, SUB, MUL, EXP } from "../arithmetic/number.js";
-import { TRUE, FALSE, IF, AND, OR, NOT, XOR, NAND, IMPLIES } from "../arithmetic/booleans.js";
+import { NUMBER, ADD, SUB, MULT, EXP } from "../church/number.js";
+import { TRUE, FALSE, IF, AND, OR, NOT, XOR, NAND, IMPLIES } from "../church/boolean.js";
 
 export class LambdaExpressionParser {
     static parse(input) {
@@ -97,7 +97,7 @@ export class LambdaExpressionParser {
 
         if (operator === "+") return ADD;
         if (operator === "-") return SUB;
-        if (operator === "*") return MUL;
+        if (operator === "*") return MULT;
         if (operator === "^") return EXP;
 
         throw new Error(`Unknown operator "${operator}"`);

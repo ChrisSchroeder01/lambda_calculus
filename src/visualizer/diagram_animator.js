@@ -268,7 +268,7 @@ export class DiagramAnimator {
     }
 
     /*
-     * Draw one source line toward multiple destination lines.
+     * Draw one source line toward MULTtiple destination lines.
      *
      * This is what makes splits look like:
      *
@@ -475,7 +475,7 @@ export class DiagramAnimator {
             }
 
             /*
-             * Allow the same source to be used multiple times.
+             * Allow the same source to be used MULTtiple times.
              *
              * This is important for one-to-many transitions.
              */

@@ -1,8 +1,8 @@
 import { Variable } from "../term/variable.js";
 import { Abstraction } from "../term/abstraction.js";
 import { Application } from "../term/application.js";
-import { NUMBER, ADD, SUB, MUL, EXP } from "../arithmetic/number.js";
-import { TRUE, FALSE, IF, AND, OR, NOT, XOR, NAND, IMPLIES } from "../arithmetic/booleans.js";
+import { NUMBER, ADD, SUB, MULT, EXP } from "../church/number.js";
+import { TRUE, FALSE, IF, AND, OR, NOT, XOR, NAND, IMPLIES } from "../church/boolean.js";
 
 export class LambdaExpressionAnalyzer {
     static analyze(expression) {
@@ -19,7 +19,7 @@ export class LambdaExpressionAnalyzer {
 
         if (this.same(expression, ADD)) return "+";
         if (this.same(expression, SUB)) return "-";
-        if (this.same(expression, MUL)) return "*";
+        if (this.same(expression, MULT)) return "*";
         if (this.same(expression, EXP)) return "^";
 
         if (this.same(expression, IF)) return "IF";
@@ -99,7 +99,7 @@ export class LambdaExpressionAnalyzer {
             };
         }
 
-        if (this.same(operator, MUL)) {
+        if (this.same(operator, MULT)) {
             return {
                 operator: "*",
                 left: expression.fn.argument,

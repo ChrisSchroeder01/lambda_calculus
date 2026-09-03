@@ -67,7 +67,7 @@ export const ADD = new Abstraction(
     )
 );
 
-export const MUL = new Abstraction(
+export const MULT = new Abstraction(
     new Variable("m"),
     new Abstraction(
         new Variable("n"),
