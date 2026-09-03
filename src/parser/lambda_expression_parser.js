@@ -1,7 +1,7 @@
 import { Variable } from "../term/variable.js";
 import { Abstraction } from "../term/abstraction.js";
 import { Application } from "../term/application.js";
-import { NUMBER, ADD, SUB, MULT, EXP } from "../church/number.js";
+import { NUMBER, ADD, SUB, MULT, EXP, DIV } from "../church/number.js";
 import { TRUE, FALSE, IF, AND, OR, NOT, XOR, NAND, IMPLIES } from "../church/boolean.js";
 
 export class LambdaExpressionParser {
@@ -99,6 +99,7 @@ export class LambdaExpressionParser {
         if (operator === "-") return SUB;
         if (operator === "*") return MULT;
         if (operator === "^") return EXP;
+        if (operator === "/") return DIV;
 
         throw new Error(`Unknown operator "${operator}"`);
     }
@@ -196,7 +197,7 @@ export class LambdaExpressionParser {
     }
 
     isOperator(character) {
-        return ["+", "-", "*", "^"].includes(character);
+        return ["+", "-", "*", "^", "/"].includes(character);
     }
 
     isBooleanBinaryOperator() {
